@@ -1,134 +1,174 @@
-# GolfPose: From Regular Posture to Golf Swing Posture
+# GolfPose: Efficient 2D & 3D Golf Swing Pose Estimation
 
-<p align="center"> <img src="./images/framework_v13.svg" width="80%"> </p> 
+<p align="center"> <img src="./images/framework_v13.svg" width="80%"> </p>
 
-The official implementation of **GolfPose: From Regular Posture to Golf Swing Posture** (ICPR 2024) 
+An end-to-end training, evaluation, and visualization pipeline for full-body and golf club pose estimation, featuring lightweight 2D backbones (RTMPose, MobileNetV2, ShuffleNetV2, EfficientNet, SqueezeNet), multi-GPU Distributed Data Parallel (DDP) 3D lifting, comprehensive evaluation metrics, and SLURM cluster support.
 
-[📜Paper](https://minghanlee.github.io/papers/ICPR_2024_GolfPose.pdf)
+---
 
-## Environment
+## Environment Setup
 
-Create a conda environment named ``golfpose`` from `environment.yml`.
-```
+Create and activate the conda environment:
+```bash
 conda env create -f environment.yml
 conda activate golfpose
 ```
 
-## Preparation
-### Dataset
+---
 
-Download the dataset from this [link](http://gofile.me/4RvCV/LoqF43SeV).<br>
-Please email [mhlee.cs09@nycu.edu.tw](mailto:mhlee.cs09@nycu.edu.tw) to authorize the dataset download.
+## Dataset Preparation
 
-Unzip the dataset and organize it as follows:
+Organize the GolfPose dataset directory under the repository root as follows:
 ```
-GolfPose
-|-- golfswing
-|   |-- coco
-|   |-- data_2d_golf_gt.npz
-|   |-- data_3d_golf_gt.npz
-|   `-- images
+GolfPose/
+`-- golfswing/
+    |-- coco/
+    |-- data_2d_golf_gt.npz
+    |-- data_3d_golf_gt.npz
+    `-- images/
 ```
 
-### Models
-Download the checkpoints and and organize it as follows:
+> **Note**: The raw dataset files in `golfswing/` are excluded from version control via `.gitignore`.
+
+---
+
+## 2D Keypoint Training (MMPose)
+
+We provide top-down and bottom-up lightweight MMPose configurations optimized for golfer and club keypoint detection at both standard (`256x192`) and ultra-compact (`128x96`) resolutions:
+
+### Single GPU
+```bash
+# RTMPose-Tiny (Fastest top-down)
+python tools/train_2d.py configs/mmpose/lightweight/rtmpose_tiny_golfer_256x192.py
+
+# Ultra-compact 128x96 variant
+python tools/train_2d.py configs/mmpose/lightweight/rtmpose_tiny_golfer_128x96.py
+
+# MobileNetV2
+python tools/train_2d.py configs/mmpose/lightweight/mobilenetv2_golfer_256x192.py
+
+# ShuffleNetV2 (128x96)
+python tools/train_2d.py configs/mmpose/lightweight/shufflenetv2_golfer_128x96.py
 ```
-GolfPose
-|-- golfpose_checkpoints
-|   |-- golfpose_17+0_35.6.bin
-|   |-- golfpose_17+1_30.7_29.5_50.9.bin
-|   |-- golfpose_17+2_33.6_30.5_59.5.bin
-|   |-- golfpose_17+3_35.6_30.8_62.9.bin
-|   |-- golfpose_17+4_37.9_32.3_61.4.bin
-|   |-- golfpose_17+5_39.2_32.3_62.8.bin
-|   |-- golfpose_club_ViTPose_huge.pth
-|   |-- golfpose_club_dekr.pth
-|   |-- golfpose_club_hrnetw48.pth
-|   |-- golfpose_detector_1cls_faster_rcnn.pth
-|   |-- golfpose_detector_1cls_yolox_s.pth
-|   |-- golfpose_detector_2cls_faster_rcnn.pth
-|   |-- golfpose_detector_2cls_yolox_s.pth
-|   |-- golfpose_golfer_ViTPose_huge.pth
-|   |-- golfpose_golfer_dekr.pth
-|   |-- golfpose_golfer_hrnetw48.pth
-|   |-- golfpose_person_ViTPose_huge.pth
-|   |-- golfpose_person_dekr.pth
-|   `-- golfpose_person_hrnetw48.pth
+
+### Multi-GPU (Distributed)
+```bash
+torchrun --nproc_per_node=4 tools/train_2d.py \
+    configs/mmpose/lightweight/rtmpose_tiny_golfer_256x192.py \
+    --launcher pytorch --amp
 ```
-#### Golfpose detectors
 
-| Model | Class | AP | Ckpt | Config |
-| - | - | - | - | - |
-| Faster R-CNN | 2(golfer, club) | 0.884 | [ckpt](http://gofile.me/4RvCV/0rpv3tZBr) | [config](configs/mmdet/golfpose_detector_2cls.py) |
-| Faster R-CNN | 1(golfer-with-club) | 0.918 | [ckpt](http://gofile.me/4RvCV/qQMFqE8Pp) | [config](configs/mmdet/golfpose_detector_1cls.py) |
-| YOLOX-s | 2(golfer, club) | 0.916 | [ckpt](http://gofile.me/4RvCV/ALgsmvtPw) | [config](configs/mmdet/golfpose_detector_2cls_yolox_s.py) |
-| YOLOX-s | 1(golfer-with-club) | 0.984 | [ckpt](http://gofile.me/4RvCV/HwXebcmpj) | [config](configs/mmdet/golfpose_detector_1cls_yolox_s.py) |
+Available configs in `configs/mmpose/lightweight/`:
+- `rtmpose_tiny_golfer_256x192.py` / `rtmpose_tiny_golfer_128x96.py`
+- `rtmpose_s_golfer_256x192.py`
+- `mobilenetv2_golfer_256x192.py` / `mobilenetv2_golfer_128x96.py`
+- `shufflenetv2_golfer_256x192.py` / `shufflenetv2_golfer_128x96.py`
+- `efficientnet_golfer_256x192.py` / `efficientnet_golfer_128x96.py`
+- `squeezenet_golfer_256x192.py` / `squeezenet_golfer_128x96.py`
+- `dekr_mobilenetv2_golfer_512x512.py` (Bottom-up)
 
-#### GolfPose-2D models
+---
 
-| Model | Source model | AP | Ckpt | Config |
-| - | - | - | - | - |
-| GolfPose-2D(G) | HRNet-w48 | 0.884 | [ckpt](http://gofile.me/4RvCV/ZeuNina2L) | [config](configs/mmpose/golfpose_person_hrnetw48.py) |
-| GolfPose-2D(G) | ViTPose-H | 0.887 | [ckpt](http://gofile.me/4RvCV/HcaHe3i4O) | [config](configs/mmpose/golfpose_person_ViTPose_huge.py) |
-| GolfPose-2D(G) | DEKR | 0.869 | [ckpt](http://gofile.me/4RvCV/gXKtqMnd8) | [config](configs/mmpose/golfpose_person_dekr.py) |
-| GolfPose-2D(C) | HRNet-w48 | 0.857 | [ckpt](http://gofile.me/4RvCV/brjKDEonU) | [config](configs/mmpose/golfpose_club_hrnetw48.py) |
-| GolfPose-2D(C) | ViTPose-H | 0.870 | [ckpt](http://gofile.me/4RvCV/JrI9K96AI) | [config](configs/mmpose/golfpose_club_ViTPose_huge.py) |
-| GolfPose-2D(C) | DEKR | 0.858 | [ckpt](http://gofile.me/4RvCV/6HZbJLvIU) | [config](configs/mmpose/golfpose_club_dekr.py) |
-| GolfPose-2D(GC) | HRNet-w48 | 0.915 | [ckpt](http://gofile.me/4RvCV/YmRPLzEMc) | [config](configs/mmpose/golfpose_golfer_hrnetw48.py) |
-| GolfPose-2D(GC) | ViTPose-H | 0.925 | [ckpt](http://gofile.me/4RvCV/S7Th5DCFc) | [config](configs/mmpose/golfpose_golfer_ViTPose_huge.py) |
-| GolfPose-2D(GC) | DEKR | 0.942 | [ckpt](http://gofile.me/4RvCV/OcHJYdPjK) | [config](configs/mmpose/golfpose_golfer_dekr.py) |
+## 3D Lifter Training (Distributed DDP)
 
-#### GolfPose-3D models
+Train 3D temporal lifter models with PyTorch Distributed Data Parallel (DDP), Automatic Mixed Precision (AMP), early stopping, and WandB / TensorBoard logging:
 
-| Model | # of Keypoints | MPJPE(mm) | Ckpt |
-| - | - | - | - |
-| GolfPose-3D(GC) (N=17) | 17+0 | 35.6 | [ckpt](http://gofile.me/4RvCV/0fDtmLac5) |
-| GolfPose-3D(GC) (N=18) | 17+1 | 30.7 | [ckpt](http://gofile.me/4RvCV/Jp3LgXPt2) |
-| GolfPose-3D(GC) (N=19) | 17+2 | 33.6 | [ckpt](http://gofile.me/4RvCV/7WCM0f7hP) |
-| GolfPose-3D(GC) (N=20) | 17+3 | 35.6 | [ckpt](http://gofile.me/4RvCV/dze4upuhT) |
-| GolfPose-3D(GC) (N=21) | 17+4 | 37.9 | [ckpt](http://gofile.me/4RvCV/2euaAHSFd) |
-| GolfPose-3D(GC) (N=22) | 17+5 | 39.2 | [ckpt](http://gofile.me/4RvCV/Xp00uwEBO) |
+### Single GPU
+```bash
+python train_ddp.py \
+    -k gt -d golf \
+    -str G1,G2,G3,G4 -ste G5,G6 \
+    -f 243 -s 243 -club 5 \
+    -c checkpoint/golfpose_3d \
+    --lr 0.0002 --epochs 80 --batch-size 64 \
+    --use-amp --early-stopping-patience 10
+```
 
+### Multi-GPU (torchrun)
+```bash
+torchrun --nproc_per_node=4 train_ddp.py \
+    -k gt -d golf \
+    -str G1,G2,G3,G4 -ste G5,G6 \
+    -f 243 -s 243 -club 5 \
+    -c checkpoint/golfpose_3d \
+    --lr 0.0004 --epochs 80 --batch-size 64 \
+    --use-amp --wandb-project golfpose-3d
+```
+
+---
 
 ## Evaluation
-#### Evaluate Golfpose detector:
 
-```shell
-python mmdet_test.py configs/mmdet/***.py golfpose_checkpoints/***.pth
-```
-Example:
-```shell
-python mmdet_test.py configs/mmdet/golfpose_detector_2cls.py golfpose_checkpoints/golfpose_detector_2cls_faster_rcnn.pth
-```
+Run comprehensive multi-metric evaluation (MPJPE, P-MPJPE, per-joint errors, club head error, and phase breakdowns) with CSV / JSON export:
 
-#### Evaluate GolfPose-2D models:
-
-```shell
-python mmpose_test.py configs/mmpose/***.py golfpose_checkpoints/***.pth
-```
-Example:
-```shell
-python mmpose_test.py configs/mmpose/golfpose_golfer_hrnetw48.py golfpose_checkpoints/golfpose_golfer_hrnetw48.pth
+```bash
+python tools/eval_comprehensive.py \
+    --checkpoint checkpoint/golfpose_3d/best_epoch.bin \
+    -k gt -d golf \
+    -str G1,G2,G3,G4 -ste G5,G6 \
+    -f 243 -s 243 -club 5 \
+    --output-dir results/eval \
+    --save-csv --save-json
 ```
 
-#### Evaluate GolfPose-3D models:
+---
 
-```shell
-python golfpose_3d.py -k gt -d golf -str G1,G2,G3,G4 -ste G5,G6 -c golfpose_checkpoints --evaluate ***.bin -f 243 -s 243 -gpu 0 -club ***
+## Visualization
+
+Generate side-by-side 2D and 3D animated pose predictions:
+
+```bash
+python tools/visualize.py \
+    --checkpoint checkpoint/golfpose_3d/best_epoch.bin \
+    --data-dir golfswing \
+    --split test \
+    --sample-idx 0 \
+    --save-dir results/vis \
+    --fps 30
 ```
-Example:
-```shell
-python golfpose_3d.py -k gt -d golf -str G1,G2,G3,G4 -ste G5,G6 -c golfpose_checkpoints --evaluate golfpose_17+5_39.2_32.3_62.8.bin -f 243 -s 243 -gpu 0 -club 5
+
+---
+
+## SLURM Cluster Scripts
+
+Ready-to-submit batch scripts for high-performance compute clusters are located in `slurm/`:
+
+```bash
+# 3D Single GPU Training
+sbatch slurm/train_single_gpu.sh
+
+# 3D Multi-GPU DDP Training (4x GPUs)
+sbatch slurm/train_multi_gpu.sh
+
+# 3D Multi-Node Distributed Training (2 nodes x 4 GPUs)
+sbatch slurm/train_multi_node.sh
+
+# 2D MMPose Training
+sbatch slurm/train_2d_slurm.sh
+
+# Comprehensive Evaluation & Visualization
+sbatch slurm/eval_slurm.sh
+sbatch slurm/visualize_slurm.sh
 ```
 
-## Acknowledgement
+---
 
-- [MMDetection](https://github.com/open-mmlab/mmdetection)
-- [MMPose](https://github.com/open-mmlab/mmpose)
-- [MixSTE](https://github.com/JinluZhang1126/MixSTE)
+## Acknowledgements
+
+This repository builds upon and extends the following works:
+
+- **[GolfPose](https://github.com/MingHanLee/GolfPose)**: The original implementation and dataset by Ming-Han Lee, Yu-Chen Zhang, Kun-Ru Wu, and Yu-Chee Tseng.
+- **[OpenMMLab MMPose](https://github.com/open-mmlab/mmpose)**: Open-source 2D pose estimation toolbox.
+- **[OpenMMLab MMDetection](https://github.com/open-mmlab/mmdetection)**: Open-source object detection toolbox.
+- **[MixSTE](https://github.com/JinluZhang1126/MixSTE)**: Mixed Spatio-Temporal Encoder for 3D human pose estimation.
+
+---
 
 ## Citation
-```
+
+If you use this work or the GolfPose dataset, please cite the original paper:
+
+```bibtex
 @inproceedings{lee2025golfpose,
   title={GolfPose: From Regular Posture to Golf Swing Posture},
   author={Lee, Ming-Han and Zhang, Yu-Chen and Wu, Kun-Ru and Tseng, Yu-Chee},
@@ -138,6 +178,3 @@ python golfpose_3d.py -k gt -d golf -str G1,G2,G3,G4 -ste G5,G6 -c golfpose_chec
   organization={Springer}
 }
 ```
-
-## LICENSE
-*This project uses a custom EULA. You are allowed to use the dataset for commercial model training, but strictly prohibited from redistributing or reselling the raw data. Please refer to the [LICENSE](LICENSE) file for details.*
