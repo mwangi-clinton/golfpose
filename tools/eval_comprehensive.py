@@ -168,7 +168,14 @@ def compute_model_complexity(model, num_joints, num_frames, device="cuda"):
 # ---------------------------------------------------------------------------
 
 def load_dataset(args, total_num):
-    dataset_path = "golfswing/data_3d_" + args.dataset + "_" + args.keypoints + ".npz"
+    dataset_name = "data_3d_" + args.dataset + "_" + args.keypoints + ".npz"
+    dataset_path = "golfswing/" + dataset_name
+    
+    if not os.path.exists(dataset_path):
+        fallback_path = f"/capstor/scratch/cscs/ckuya/golfpose_dataset/golfswing/{dataset_name}"
+        if os.path.exists(fallback_path):
+            dataset_path = fallback_path
+
     if args.dataset == "h36m":
         from common.h36m_dataset import Human36mDataset
         dataset = Human36mDataset(dataset_path)
@@ -200,7 +207,14 @@ def load_dataset(args, total_num):
                     positions_3d.append(pos_3d)
                 anim["positions_3d"] = positions_3d
 
-    kp_path = "golfswing/data_2d_" + args.dataset + "_" + args.keypoints + ".npz"
+    kp_name = "data_2d_" + args.dataset + "_" + args.keypoints + ".npz"
+    kp_path = "golfswing/" + kp_name
+    
+    if not os.path.exists(kp_path):
+        fallback_kp = f"/capstor/scratch/cscs/ckuya/golfpose_dataset/golfswing/{kp_name}"
+        if os.path.exists(fallback_kp):
+            kp_path = fallback_kp
+            
     keypoints = np.load(kp_path, allow_pickle=True)
     keypoints_metadata = keypoints["metadata"].item()
     keypoints = keypoints["positions_2d"].item()
