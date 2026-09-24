@@ -73,8 +73,10 @@ if [ ! -f "$CKPT" ]; then
     exit 1
 fi
 
+SCRATCH="${SCRATCH:-/capstor/scratch/cscs/${USER:-ckuya}}"
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/golfpose.sqsh}"
 WORK_DIR="${WORK_DIR:-$SCRATCH/golfpose_eval/${MODEL}}"
+CONTAINER_MOUNTS="${CONTAINER_MOUNTS:-/capstor:/capstor,$SCRATCH:$SCRATCH,$HOME:$HOME}"
 mkdir -p "$WORK_DIR"
 exec > >(tee -a "$WORK_DIR/slurm_${SLURM_JOB_ID:-eval}.log") 2>&1
 
@@ -86,7 +88,7 @@ echo "Starting eval: 1 node x 1 GPU | Model: $MODEL | work_dir=$WORK_DIR"
 
 srun --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
-     --container-mounts="$SCRATCH,$HOME" \
+     --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \
      python "$PROJECT_DIR/tools/eval_comprehensive.py" \
          --checkpoint "$CKPT" \

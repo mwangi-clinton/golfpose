@@ -39,11 +39,20 @@ export NCCL_IB_DISABLE=0
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export GLOO_SOCKET_IFNAME=hsn0
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="${PROJECT_DIR:-/users/ckuya/golfpose}"
+if [ ! -d "$PROJECT_DIR" ]; then
+    if [ -n "${SLURM_SUBMIT_DIR:-}" ] && [ -d "$SLURM_SUBMIT_DIR/configs" ]; then
+        PROJECT_DIR="$SLURM_SUBMIT_DIR"
+    else
+        PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    fi
+fi
 export PYTHONPATH="$PROJECT_DIR:${PYTHONPATH:-}"
 
-CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/golfpose.sqsh}"
+SCRATCH="${SCRATCH:-/capstor/scratch/cscs/${USER:-ckuya}}"
+CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/new_experiments_v2.sqsh}"
 WORK_DIR="${WORK_DIR:-$SCRATCH/golfpose_runs/${MODEL}_1n4g}"
+CONTAINER_MOUNTS="${CONTAINER_MOUNTS:-/capstor:/capstor,$SCRATCH:$SCRATCH,$HOME:$HOME}"
 mkdir -p "$WORK_DIR"
 exec > >(tee -a "$WORK_DIR/slurm_${SLURM_JOB_ID:-train}.log") 2>&1
 
@@ -59,9 +68,32 @@ echo "WandB mode  : $WANDB_MODE (project=golfpose)"
 
 echo "Starting: 1 node x 4 GPUs | Model: $MODEL | work_dir=$WORK_DIR"
 
+DATA_DIR="${DATA_DIR:-/capstor/scratch/cscs/${USER:-ckuya}/golfpose_dataset/golfswing}"
+if [ -d "$DATA_DIR" ]; then
+    mkdir -p "$PROJECT_DIR/golfswing"
+    # Ensure npz files and data files are linked for 3D lifters
+    for npz_file in "$DATA_DIR"/*.npz; do
+        if [ -f "$npz_file" ]; then
+            ln -sfn "$npz_file" "$PROJECT_DIR/golfswing/$(basename "$npz_file")"
+        fi
+    done
+    # Ensure coco json annotations are linked
+    if [ -d "$DATA_DIR/coco" ]; then
+        mkdir -p "$PROJECT_DIR/golfswing/coco"
+        for json_file in "$DATA_DIR/coco"/*.json; do
+            if [ -f "$json_file" ]; then
+                ln -sfn "$json_file" "$PROJECT_DIR/golfswing/coco/$(basename "$json_file")"
+            fi
+        done
+    fi
+fi
+export DATA_DIR
+
+cd "$PROJECT_DIR"
+
 srun --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
-     --container-mounts="$SCRATCH,$HOME" \
+     --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \
      torchrun \
          --nproc_per_node=4 \

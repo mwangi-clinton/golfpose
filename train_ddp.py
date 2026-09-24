@@ -65,16 +65,11 @@ from common.dist_utils import (
 from common.early_stopping import EarlyStopping
 from common.logging import setup_logger
 
-# ---------------------------------------------------------------------------
-# Deterministic settings
-# ---------------------------------------------------------------------------
+
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
-# ---------------------------------------------------------------------------
-# Argument parsing
-# ---------------------------------------------------------------------------
 
 def parse_args():
     p = argparse.ArgumentParser(description="GolfPose 3D lifter — DDP training")
@@ -134,10 +129,6 @@ def parse_args():
     args = p.parse_args()
     return args
 
-
-# ---------------------------------------------------------------------------
-# Dataset helpers (adapted from golfpose_3d.py)
-# ---------------------------------------------------------------------------
 
 def load_dataset(args, total_num):
     """Load 3D + 2D data and return (dataset, keypoints, keypoints_metadata)."""
@@ -269,9 +260,6 @@ def fetch(dataset, keypoints, subjects, args, action_filter=None, subset=1, pars
     return out_camera_params, out_poses_3d, out_poses_2d
 
 
-# ---------------------------------------------------------------------------
-# Eval data preparation (from golfpose_3d.py)
-# ---------------------------------------------------------------------------
 
 def eval_data_prepare(receptive_field, inputs_2d, inputs_3d):
     """Split long sequences into receptive_field-sized chunks for evaluation."""
@@ -307,9 +295,7 @@ def eval_data_prepare(receptive_field, inputs_2d, inputs_3d):
     return eval_input_2d, eval_input_3d
 
 
-# ---------------------------------------------------------------------------
-# Loss weights per dataset
-# ---------------------------------------------------------------------------
+
 
 def get_loss_weights(dataset_name, total_num):
     """Return per-joint MPJPE weight tensor."""
@@ -324,9 +310,7 @@ def get_loss_weights(dataset_name, total_num):
     return torch.tensor(w[:total_num], dtype=torch.float32).cuda()
 
 
-# ---------------------------------------------------------------------------
-# Evaluate
-# ---------------------------------------------------------------------------
+
 
 @torch.no_grad()
 def evaluate(model, test_generator, receptive_field, kps_left, kps_right,
@@ -397,10 +381,6 @@ def evaluate(model, test_generator, receptive_field, kps_left, kps_right,
     e1_club = (epoch_loss_3d_pos_club / N) * 1000
     return e1, e1_human, e1_club, e2, e3, ev
 
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def main():
     args = parse_args()
@@ -584,15 +564,11 @@ def main():
 
     w_mpjpe = get_loss_weights(args.dataset, total_num)
 
-    # ---- Log initial info ----
     if writer:
         writer.add_text("config/model", args.model)
         writer.add_text("config/params_M", f"{model_params / 1e6:.2f}")
         writer.add_text("config/command", "python " + " ".join(sys.argv))
 
-    # ==================================================================
-    # TRAINING LOOP
-    # ==================================================================
     lr = args.learning_rate
 
     for epoch in range(start_epoch, args.epochs):
@@ -647,12 +623,10 @@ def main():
 
         train_loss = epoch_loss / max(N_train, 1)
 
-        # ---- LR decay ----
         lr *= args.lr_decay
         for pg in optimizer.param_groups:
             pg["lr"] *= args.lr_decay
 
-        # ---- Validation ----
         val_mpjpe = 0
         if not args.no_eval:
             # Sync model weights for eval
@@ -750,7 +724,6 @@ def main():
                 logger.warning("Early stopping triggered at epoch %d", epoch + 1)
                 break
 
-        # ---- Training curves ----
         if is_main_process() and args.export_training_curves and epoch > 3:
             try:
                 import matplotlib
@@ -766,9 +739,6 @@ def main():
             except Exception:
                 pass
 
-    # ==================================================================
-    # FINAL EVALUATION
-    # ==================================================================
     if is_main_process() and not args.no_eval:
         logger.info("=" * 60)
         logger.info("Final evaluation on test set")
@@ -809,7 +779,6 @@ def main():
         if wandb_run:
             wandb_run.summary.update(metrics)
 
-    # ---- Cleanup ----
     if writer:
         writer.close()
     if wandb_run:

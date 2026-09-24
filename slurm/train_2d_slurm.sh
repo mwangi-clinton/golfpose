@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=golfpose_train_2d
+#SBATCH --job-name=rtmpose_tiny
 #SBATCH --account=g164
-#SBATCH --time=24:00:00
+#SBATCH --time=6:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=4
 #SBATCH --gpus-per-node=4
@@ -30,9 +30,10 @@ CONFIG="${1:-configs/mmpose/lightweight/rtmpose_tiny_golfer_256x192.py}"
 if [ $# -gt 0 ]; then shift; fi
 EXTRA_ARGS=("$@")
 
+export WANDB_API_KEY="${WANDB_API_KEY:-}"
+export WANDB_MODE="${WANDB_MODE:-online}"
 export OMP_NUM_THREADS=8
 export MKL_NUM_THREADS=8
-export WANDB_MODE=${WANDB_MODE:-disabled}
 export CUDNN_BENCHMARK=1
 export PYTHONUNBUFFERED=1
 export NCCL_DEBUG=INFO
@@ -41,7 +42,14 @@ export NCCL_IB_DISABLE=0
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export GLOO_SOCKET_IFNAME=hsn0
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="${PROJECT_DIR:-/users/ckuya/golfpose}"
+if [ ! -d "$PROJECT_DIR" ]; then
+    if [ -n "${SLURM_SUBMIT_DIR:-}" ] && [ -d "$SLURM_SUBMIT_DIR/configs" ]; then
+        PROJECT_DIR="$SLURM_SUBMIT_DIR"
+    else
+        PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    fi
+fi
 export PYTHONPATH="$PROJECT_DIR:${PYTHONPATH:-}"
 
 if [[ "$CONFIG" != /* ]]; then
@@ -52,9 +60,11 @@ if [ ! -f "$CONFIG" ]; then
     exit 1
 fi
 
-CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/golfpose.sqsh}"
+SCRATCH="${SCRATCH:-/capstor/scratch/cscs/${USER:-ckuya}}"
+CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/new_experiments_v2.sqsh}"
 RUN_NAME="$(basename "$CONFIG" .py)"
 WORK_DIR="${WORK_DIR:-$SCRATCH/golfpose_2d/$RUN_NAME}"
+CONTAINER_MOUNTS="${CONTAINER_MOUNTS:-/capstor:/capstor,$SCRATCH:$SCRATCH,$HOME:$HOME}"
 mkdir -p "$WORK_DIR"
 exec > >(tee -a "$WORK_DIR/slurm_${SLURM_JOB_ID:-train}.log") 2>&1
 
@@ -65,20 +75,39 @@ echo "Nodes: $(scontrol show hostnames $SLURM_JOB_NODELIST | tr '\n' ' ')  Maste
 echo "WandB mode  : $WANDB_MODE"
 echo "Starting: $SLURM_NNODES node(s) x 4 GPUs | Config: $CONFIG | work_dir=$WORK_DIR"
 
+DATA_DIR="${DATA_DIR:-/capstor/scratch/cscs/${USER:-ckuya}/golfpose_dataset/golfswing}"
+if [ -d "$DATA_DIR" ]; then
+    mkdir -p "$PROJECT_DIR/golfswing/coco"
+    for json_file in "$DATA_DIR/coco"/*.json; do
+        if [ -f "$json_file" ]; then
+            ln -sfn "$json_file" "$PROJECT_DIR/golfswing/coco/$(basename "$json_file")"
+        fi
+    done
+    echo "Linked annotation files from $DATA_DIR/coco -> $PROJECT_DIR/golfswing/coco"
+
+    # Ensure images directory is linked
+    if [ ! -e "$PROJECT_DIR/golfswing/images" ] || [ -L "$PROJECT_DIR/golfswing/images" ]; then
+        ln -sfn "$DATA_DIR/images" "$PROJECT_DIR/golfswing/images"
+        echo "Linked images from $DATA_DIR/images -> $PROJECT_DIR/golfswing/images"
+    fi
+fi
+export DATA_DIR
+
+cd "$PROJECT_DIR"
+
 srun --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
-     --container-mounts="$SCRATCH,$HOME" \
+     --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \
      python "$PROJECT_DIR/tools/train_2d.py" \
          "$CONFIG" \
          --launcher slurm \
          --work-dir "$WORK_DIR" \
+         --data-root "$DATA_DIR" \
          "${EXTRA_ARGS[@]}"
 
-# Fallback for non-CSCS clusters without pyxis containers — replace the srun
-# block above with something like:
-#   source ~/miniconda3/etc/profile.d/conda.sh
-#   conda activate golfpose
-#   python tools/train_2d.py "$CONFIG" --launcher pytorch --work-dir "$WORK_DIR" ...
+# Fallback for non-container runs (e.g. running directly in virtualenv or non-pyxis cluster):
+#   source ~/main-venv/bin/activate
+#   python tools/train_2d.py "$CONFIG" --launcher slurm --work-dir "$WORK_DIR" --data-root "$DATA_DIR" "${EXTRA_ARGS[@]}"
 
 echo "Training complete!"

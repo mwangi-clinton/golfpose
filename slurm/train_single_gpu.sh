@@ -43,8 +43,10 @@ export GLOO_SOCKET_IFNAME=hsn0
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="$PROJECT_DIR:${PYTHONPATH:-}"
 
+SCRATCH="${SCRATCH:-/capstor/scratch/cscs/${USER:-ckuya}}"
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/golfpose.sqsh}"
 WORK_DIR="${WORK_DIR:-$SCRATCH/golfpose_runs/${MODEL}}"
+CONTAINER_MOUNTS="${CONTAINER_MOUNTS:-/capstor:/capstor,$SCRATCH:$SCRATCH,$HOME:$HOME}"
 mkdir -p "$WORK_DIR"
 exec > >(tee -a "$WORK_DIR/slurm_${SLURM_JOB_ID:-train}.log") 2>&1
 
@@ -74,7 +76,7 @@ echo "Starting: 1 node x 1 GPU | Model: $MODEL | work_dir=$WORK_DIR"
 
 srun --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
-     --container-mounts="$SCRATCH,$HOME" \
+     --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \
      "${CMD[@]}"
 

@@ -46,8 +46,10 @@ export PYTHONUNBUFFERED=1
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="$PROJECT_DIR:${PYTHONPATH:-}"
 
+SCRATCH="${SCRATCH:-/capstor/scratch/cscs/${USER:-ckuya}}"
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-$SCRATCH/ce-images/golfpose.sqsh}"
 WORK_DIR="${WORK_DIR:-$SCRATCH/golfpose_vis}"
+CONTAINER_MOUNTS="${CONTAINER_MOUNTS:-/capstor:/capstor,$SCRATCH:$SCRATCH,$HOME:$HOME}"
 mkdir -p "$WORK_DIR"
 exec > >(tee -a "$WORK_DIR/slurm_${SLURM_JOB_ID:-vis}.log") 2>&1
 
@@ -55,7 +57,7 @@ echo "Starting visualisation: $SUBCMD | work_dir=$WORK_DIR"
 
 srun --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
-     --container-mounts="$SCRATCH,$HOME" \
+     --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \
      python "$PROJECT_DIR/tools/visualize.py" \
          "$SUBCMD" \
