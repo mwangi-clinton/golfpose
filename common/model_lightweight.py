@@ -64,7 +64,7 @@ class MixSTELite(nn.Module):
     # LinearMultiheadAttention (Linformer-style low-rank attention) to stay
     # lightweight.
     def __init__(self, num_frame=9, num_joints=17, in_chans=2, embed_dim_ratio=128,
-                 depth=4, num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
+                 depth=4, num_heads=8, mlp_ratio=2., qkv_bias=False, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1, norm_layer=None):
         super().__init__()
 
@@ -193,7 +193,7 @@ def create_lifter(name, num_joints, num_frames, preset='base', **overrides):
         params.update({k: v for k, v in overrides.items() if k in ('embed_dim_ratio', 'depth')})
         return MixSTE2(num_frame=num_frames, num_joints=num_joints, in_chans=2,
                        embed_dim_ratio=params['embed_dim_ratio'], depth=params['depth'],
-                       num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
+                       num_heads=8, mlp_ratio=2., qkv_bias=False, qk_scale=None,
                        drop_path_rate=drop_path if drop_path is not None else 0.1)
 
     if name == 'mixste_lite':
@@ -206,14 +206,14 @@ def create_lifter(name, num_joints, num_frames, preset='base', **overrides):
     if name == 'linformer':
         params.update({k: v for k, v in overrides.items() if k in ('embed_dim_ratio', 'depth')})
         return Cross_Linformer(num_frame=num_frames, num_joints=num_joints, in_chans=2,
-                               num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
+                               num_heads=8, mlp_ratio=2., qkv_bias=False, qk_scale=None,
                                drop_path_rate=drop_path if drop_path is not None else 0.1,
                                **params)
 
     if name == 'rela':
         params.update({k: v for k, v in overrides.items() if k in ('embed_dim_ratio', 'depth')})
         return MixSTERELA(num_frame=num_frames, num_joints=num_joints, in_chans=2,
-                          num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
+                          num_heads=8, mlp_ratio=2., qkv_bias=False, qk_scale=None,
                           drop_path_rate=drop_path if drop_path is not None else 0.1,
                           **params)
 
