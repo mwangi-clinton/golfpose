@@ -84,7 +84,7 @@ train_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_golfer_2d_train.json',
+        ann_file='coco/hscc_golf_kps22_2d_train.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         pipeline=train_pipeline,
     ))
@@ -93,14 +93,14 @@ val_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_golfer_2d_test.json',
+        ann_file='coco/hscc_golf_kps22_2d_test.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         test_mode=True, pipeline=val_pipeline,
     ))
 test_dataloader = val_dataloader
 
 val_evaluator = dict(type='CocoMetric',
-                     ann_file=data_root + 'coco/hscc_golf_golfer_2d_test.json')
+                     ann_file=data_root + 'coco/hscc_golf_kps22_2d_test.json')
 test_evaluator = val_evaluator
 
 
