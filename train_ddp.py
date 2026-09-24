@@ -120,6 +120,7 @@ def parse_args():
     p.add_argument("--wandb", action="store_true", help="enable WandB logging")
     p.add_argument("--wandb-project", default="golfpose", type=str)
     p.add_argument("--wandb-run-name", default="", type=str)
+    p.add_argument("--wandb-group", default="3d_lifter", type=str)
     p.add_argument("--nolog", action="store_true")
     p.add_argument("--json-log", action="store_true",
                    help="write JSON-formatted log file")
@@ -424,6 +425,7 @@ def main():
             wandb_run = wandb.init(
                 project=args.wandb_project,
                 name=args.wandb_run_name or f"{args.model}_{timestamp}",
+                group=args.wandb_group,
                 config=vars(args),
                 dir=args.checkpoint,
                 resume="allow",
