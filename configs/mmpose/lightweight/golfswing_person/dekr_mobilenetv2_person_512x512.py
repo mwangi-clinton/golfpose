@@ -135,7 +135,7 @@ test_evaluator = val_evaluator
 
 vis_backends = [
     dict(type='LocalVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='person_dekr_mobilenetv2_golfer_512x512'))
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='person_dekr_mobilenetv2_golfer_512x512', group='golfswing_person'))
 ]
 visualizer = dict(
     type='PoseLocalVisualizer', vis_backends=vis_backends, name='person_dekr_mobilenetv2_golfer_512x512')
