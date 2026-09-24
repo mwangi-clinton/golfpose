@@ -1,9 +1,9 @@
-# EfficientNet-B0 backbone — 128x96 ultra-low-resolution top-down
-# Compound-scaled backbone at minimum practical resolution.
+# ShuffleNetV2 backbone — 128x96 ultra-low-resolution top-down
+# Smallest practical config for the most efficient backbone.
 
 _base_ = ['../_base_/default_runtime.py']
 
-checkpoint_url = None
+checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/shufflenetv2/shufflenetv2_coco_256x192-0aba71c7_20200921.pth'
 
 train_cfg = dict(max_epochs=200, val_interval=10)
 
@@ -25,6 +25,7 @@ default_hooks = dict(
         type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
+    visualization=dict(type='PoseVisualizationHook', enable=True, interval=10),
 )
 
 codec = dict(
@@ -38,17 +39,16 @@ model = dict(
         std=[58.395, 57.12, 57.375],
         bgr_to_rgb=True),
     backbone=dict(
-        type='EfficientNet',
-        arch='b0',
-        out_indices=(6, ),
-        norm_cfg=dict(type='SyncBN'),
+        type='ShuffleNetV2',
+        widen_factor=1.,
+        out_indices=(3, ),
         init_cfg=dict(type='Pretrained',
-                      checkpoint='mmcls://efficientnet-b0'),
+                      checkpoint='mmcls://shufflenet_v2'),
     ),
     head=dict(
         type='HeatmapHead',
-        in_channels=320,
-        out_channels=17,
+        in_channels=1024,
+        out_channels=22,
         num_deconv_layers=2,
         num_deconv_filters=(256, 256),
         num_deconv_kernels=(4, 4),
@@ -61,7 +61,7 @@ model = dict(
 )
 
 dataset_type = 'CocoDataset'
-metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_person.py')
+metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_golfer.py')
 data_mode = 'topdown'
 data_root = 'golfswing/'
 
@@ -87,7 +87,7 @@ train_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_train.json',
+        ann_file='coco/hscc_golf_golfer_2d_train.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         pipeline=train_pipeline,
     ))
@@ -96,20 +96,20 @@ val_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_test.json',
+        ann_file='coco/hscc_golf_golfer_2d_test.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         test_mode=True, pipeline=val_pipeline,
     ))
 test_dataloader = val_dataloader
 
 val_evaluator = dict(type='CocoMetric',
-                     ann_file=data_root + 'coco/hscc_golf_person_2d_test.json')
+                     ann_file=data_root + 'coco/hscc_golf_golfer_2d_test.json')
 test_evaluator = val_evaluator
 
 
 vis_backends = [
     dict(type='LocalVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='golfer_shufflenetv2_golfer_128x96'))
 ]
 visualizer = dict(
-    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='golfer_shufflenetv2_golfer_128x96')

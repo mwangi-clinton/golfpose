@@ -30,6 +30,7 @@ default_hooks = dict(
         type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
+    visualization=dict(type='PoseVisualizationHook', enable=True, interval=10),
 )
 
 # codec
@@ -63,7 +64,7 @@ model = dict(
     head=dict(
         type='RTMCCHead',
         in_channels=384,
-        out_channels=17,
+        out_channels=5,
         input_size=codec['input_size'],
         in_featuremap_size=(8, 6),
         simcc_split_ratio=codec['simcc_split_ratio'],
@@ -82,7 +83,7 @@ model = dict(
 
 # dataset
 dataset_type = 'CocoDataset'
-metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_person.py')
+metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_club.py')
 data_mode = 'topdown'
 data_root = 'golfswing/'
 
@@ -110,7 +111,7 @@ train_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_train.json',
+        ann_file='coco/hscc_golf_club_2d_train.json',
         data_prefix=dict(img='images/'),
         metainfo=metainfo, pipeline=train_pipeline,
     ))
@@ -122,7 +123,7 @@ val_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_test.json',
+        ann_file='coco/hscc_golf_club_2d_test.json',
         data_prefix=dict(img='images/'),
         metainfo=metainfo, test_mode=True, pipeline=val_pipeline,
     ))
@@ -130,13 +131,13 @@ test_dataloader = val_dataloader
 
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root + 'coco/hscc_golf_person_2d_test.json')
+    ann_file=data_root + 'coco/hscc_golf_club_2d_test.json')
 test_evaluator = val_evaluator
 
 
 vis_backends = [
     dict(type='LocalVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='club_rtmpose_tiny_golfer_256x192'))
 ]
 visualizer = dict(
-    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='club_rtmpose_tiny_golfer_256x192')

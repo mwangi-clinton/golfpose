@@ -1,20 +1,19 @@
-# ShuffleNetV2 backbone — 128x96 ultra-low-resolution top-down
-# Smallest practical config for the most efficient backbone.
+# RTMPose-S (CSPNeXt-S backbone, ~9M params) — Top-down on GolfSwing person
+# Balanced speed/accuracy lightweight model.
 
 _base_ = ['../_base_/default_runtime.py']
 
-checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/shufflenetv2/shufflenetv2_coco_256x192-0aba71c7_20200921.pth'
+checkpoint_url = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-coco_pt-aic-coco_420e-256x192-8edcf0d7_20230127.pth'
 
 train_cfg = dict(max_epochs=200, val_interval=10)
 
 optim_wrapper = dict(optimizer=dict(
-    type='Adam', lr=5e-4,
+    type='AdamW', lr=5e-4, weight_decay=0.05,
 ))
 
 param_scheduler = [
     dict(type='LinearLR', begin=0, end=100, start_factor=0.001, by_epoch=False),
-    dict(type='MultiStepLR', begin=0, end=200, milestones=[40, 60, 70],
-         gamma=0.1, by_epoch=True),
+    dict(type='CosineAnnealingLR', begin=0, end=200, eta_min=1e-6, by_epoch=True),
 ]
 
 auto_scale_lr = dict(base_batch_size=512)
@@ -25,10 +24,13 @@ default_hooks = dict(
         type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
+    visualization=dict(type='PoseVisualizationHook', enable=True, interval=10),
 )
 
 codec = dict(
-    type='MSRAHeatmap', input_size=(128, 96), heatmap_size=(32, 24), sigma=2)
+    type='SimCCLabel', input_size=(256, 192), sigma=(5.66, 4.75),
+    simcc_split_ratio=2.0, normalize=False, use_dark=False,
+)
 
 model = dict(
     type='TopdownPoseEstimator',
@@ -38,29 +40,41 @@ model = dict(
         std=[58.395, 57.12, 57.375],
         bgr_to_rgb=True),
     backbone=dict(
-        type='ShuffleNetV2',
-        widen_factor=1.,
-        out_indices=(3, ),
-        init_cfg=dict(type='Pretrained',
-                      checkpoint='mmcls://shufflenet_v2'),
+        _scope_='mmdet',
+        type='CSPNeXt',
+        arch='P5',
+        expand_ratio=0.5,
+        deepen_factor=0.33,
+        widen_factor=0.5,
+        out_indices=(4, ),
+        channel_attention=True,
+        norm_cfg=dict(type='SyncBN'),
+        act_cfg=dict(type='SiLU'),
+        init_cfg=dict(type='Pretrained', prefix='backbone.',
+                      checkpoint=checkpoint_url),
     ),
     head=dict(
-        type='HeatmapHead',
-        in_channels=1024,
-        out_channels=17,
-        num_deconv_layers=2,
-        num_deconv_filters=(256, 256),
-        num_deconv_kernels=(4, 4),
-        loss=dict(type='KeypointMSELoss', use_target_weight=True),
+        type='RTMCCHead',
+        in_channels=512,
+        out_channels=5,
+        input_size=codec['input_size'],
+        in_featuremap_size=(8, 6),
+        simcc_split_ratio=codec['simcc_split_ratio'],
+        final_layer_kernel_size=7,
+        gau_cfg=dict(
+            hidden_dims=256, s=128, expansion_factor=2,
+            dropout_rate=0., drop_path=0.,
+            act_fn='SiLU', use_rel_bias=False, pos_enc=False,
+        ),
+        loss=dict(type='KLDiscretLoss', use_target_weight=True,
+                  beta=10., label_softmax=True),
         decoder=codec,
     ),
-    test_cfg=dict(
-        flip_test=True, flip_mode='heatmap', shift_heatmap=True,
-    ),
+    test_cfg=dict(flip_test=True),
 )
 
 dataset_type = 'CocoDataset'
-metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_person.py')
+metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_club.py')
 data_mode = 'topdown'
 data_root = 'golfswing/'
 
@@ -86,7 +100,7 @@ train_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_train.json',
+        ann_file='coco/hscc_golf_club_2d_train.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         pipeline=train_pipeline,
     ))
@@ -95,20 +109,20 @@ val_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_test.json',
+        ann_file='coco/hscc_golf_club_2d_test.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         test_mode=True, pipeline=val_pipeline,
     ))
 test_dataloader = val_dataloader
 
 val_evaluator = dict(type='CocoMetric',
-                     ann_file=data_root + 'coco/hscc_golf_person_2d_test.json')
+                     ann_file=data_root + 'coco/hscc_golf_club_2d_test.json')
 test_evaluator = val_evaluator
 
 
 vis_backends = [
     dict(type='LocalVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='club_rtmpose_s_golfer_256x192'))
 ]
 visualizer = dict(
-    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='club_rtmpose_s_golfer_256x192')

@@ -1,17 +1,14 @@
-# DEKR + MobileNetV2 backbone — Bottom-up on GolfSwing person
-# Bottom-up multi-person approach using disentangled keypoint regression
-# with a lightweight MobileNetV2 backbone.
+# MobileNetV2 backbone — 128x96 ultra-low-resolution top-down
+# ~4x faster inference and ~4x less memory than 256x192 variant.
 
 _base_ = ['../_base_/default_runtime.py']
 
-# DEKR doesn't have a MobileNetV2 official checkpoint — train from scratch
-# with MobileNetV2 ImageNet-pretrained backbone.
-checkpoint_url = None
+checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/mobilenetv2/mobilenetv2_coco_256x192-d1e58e7b_20200727.pth'
 
 train_cfg = dict(max_epochs=200, val_interval=10)
 
 optim_wrapper = dict(optimizer=dict(
-    type='Adam', lr=1e-3,
+    type='Adam', lr=5e-4,
 ))
 
 param_scheduler = [
@@ -28,21 +25,15 @@ default_hooks = dict(
         type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
+    visualization=dict(type='PoseVisualizationHook', enable=True, interval=10),
 )
 
-# Bottom-up DEKR codec
+# 128x96 heatmap codec — heatmap_size=32x24 (stride 4)
 codec = dict(
-    type='SPR',
-    input_size=(512, 512),
-    heatmap_size=(128, 128),
-    sigma=(4, 2),
-    minimal_diagonal_length=32,
-    generate_keypoint_heatmaps=True,
-    decode_max_instances=30,
-)
+    type='MSRAHeatmap', input_size=(128, 96), heatmap_size=(32, 24), sigma=2)
 
 model = dict(
-    type='BottomupPoseEstimator',
+    type='TopdownPoseEstimator',
     data_preprocessor=dict(
         type='PoseDataPreprocessor',
         mean=[123.675, 116.28, 103.53],
@@ -51,59 +42,41 @@ model = dict(
     backbone=dict(
         type='MobileNetV2',
         widen_factor=1.,
-        out_indices=(2, 4, 7),  # Multi-scale outputs for bottom-up
+        out_indices=(7, ),
         init_cfg=dict(type='Pretrained',
                       checkpoint='mmcls://mobilenet_v2'),
     ),
-    neck=dict(
-        type='FeatureMapProcessor',
-        concat=True,
-    ),
     head=dict(
-        type='DEKRHead',
-        in_channels=1280,  # Adjusted for MobileNetV2 concat
-        num_keypoints=17,
-        num_heatmap_filters=32,
-        num_offset_filters_per_kpt=15,
-        heatmap_loss=dict(type='KeypointMSELoss', use_target_weight=True),
-        displacement_loss=dict(
-            type='SoftWeightSmoothL1Loss',
-            use_target_weight=True,
-            supervise_empty=False,
-            beta=1/9.,
-            loss_weight=0.002,
-        ),
+        type='HeatmapHead',
+        in_channels=1280,
+        out_channels=22,
+        loss=dict(type='KeypointMSELoss', use_target_weight=True),
         decoder=codec,
-        rescore_cfg=dict(
-            in_channels=74,
-            norm_indexes=(5, 6),
-        ),
     ),
     test_cfg=dict(
-        multiscale_test=False,
-        flip_test=True,
-        nms_dist_thr=0.05,
-        shift_heatmap=True,
-        align_corners=False,
+        flip_test=True, flip_mode='heatmap', shift_heatmap=True,
     ),
 )
 
 dataset_type = 'CocoDataset'
-metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_person.py')
-data_mode = 'bottomup'
+metainfo = dict(from_file='configs/mmpose/_base_/datasets/golfswing_golfer.py')
+data_mode = 'topdown'
 data_root = 'golfswing/'
 
 train_pipeline = [
     dict(type='LoadImage'),
-    dict(type='BottomupRandomAffine', input_size=codec['input_size']),
+    dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
+    dict(type='RandomHalfBody'),
+    dict(type='RandomBBoxTransform'),
+    dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='GenerateTarget', encoder=codec),
     dict(type='PackPoseInputs'),
 ]
 val_pipeline = [
     dict(type='LoadImage'),
-    dict(type='BottomupResize', input_size=codec['input_size'],
-         resize_mode='fit', pad_val=(114, 114, 114)),
+    dict(type='GetBBoxCenterScale'),
+    dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs'),
 ]
 
@@ -112,7 +85,7 @@ train_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_train.json',
+        ann_file='coco/hscc_golf_golfer_2d_train.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         pipeline=train_pipeline,
     ))
@@ -121,20 +94,20 @@ val_dataloader = dict(
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
-        ann_file='coco/hscc_golf_person_2d_test.json',
+        ann_file='coco/hscc_golf_golfer_2d_test.json',
         data_prefix=dict(img='images/'), metainfo=metainfo,
         test_mode=True, pipeline=val_pipeline,
     ))
 test_dataloader = val_dataloader
 
 val_evaluator = dict(type='CocoMetric',
-                     ann_file=data_root + 'coco/hscc_golf_person_2d_test.json')
+                     ann_file=data_root + 'coco/hscc_golf_golfer_2d_test.json')
 test_evaluator = val_evaluator
 
 
 vis_backends = [
     dict(type='LocalVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='golfer_mobilenetv2_golfer_128x96'))
 ]
 visualizer = dict(
-    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='golfer_mobilenetv2_golfer_128x96')

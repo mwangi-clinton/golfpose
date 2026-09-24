@@ -1,15 +1,14 @@
-# SqueezeNet 1.1 backbone — Top-down on GolfSwing person
-# Ultra-compact backbone (~1.2M params), suitable for edge deployment.
+# ShuffleNetV2 backbone — 128x96 ultra-low-resolution top-down
+# Smallest practical config for the most efficient backbone.
 
 _base_ = ['../_base_/default_runtime.py']
 
-# SqueezeNet doesn't have an official MMPose checkpoint — uses ImageNet-pretrained
-checkpoint_url = None
+checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/shufflenetv2/shufflenetv2_coco_256x192-0aba71c7_20200921.pth'
 
 train_cfg = dict(max_epochs=200, val_interval=10)
 
 optim_wrapper = dict(optimizer=dict(
-    type='Adam', lr=1e-3,
+    type='Adam', lr=5e-4,
 ))
 
 param_scheduler = [
@@ -26,19 +25,11 @@ default_hooks = dict(
         type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
+    visualization=dict(type='PoseVisualizationHook', enable=True, interval=10),
 )
 
 codec = dict(
-    type='MSRAHeatmap', input_size=(256, 192), heatmap_size=(64, 48), sigma=2)
-
-# SqueezeNet is not natively in mmpose/mmcls registry — use a custom wrapper
-# or register it. Here we use the torchvision-based approach via mmcv's
-# ConvModule chain.  For simplicity, we define SqueezeNet as a feature
-# extractor and attach the standard HeatmapHead with deconv upsampling.
-#
-# NOTE: If mmpose does not have SqueezeNet in its registry, you can register
-# it by wrapping torchvision.models.squeezenet1_1 as a custom backbone.
-# See the custom_backbone_example below.
+    type='MSRAHeatmap', input_size=(128, 96), heatmap_size=(32, 24), sigma=2)
 
 model = dict(
     type='TopdownPoseEstimator',
@@ -48,20 +39,19 @@ model = dict(
         std=[58.395, 57.12, 57.375],
         bgr_to_rgb=True),
     backbone=dict(
-        # If SqueezeNet is registered in your mmpose/mmcls:
-        type='SqueezeNet',
-        version='1_1',
-        out_indices=(12, ),  # last fire module output
+        type='ShuffleNetV2',
+        widen_factor=1.,
+        out_indices=(3, ),
         init_cfg=dict(type='Pretrained',
-                      checkpoint='torchvision://squeezenet1_1'),
+                      checkpoint='mmcls://shufflenet_v2'),
     ),
     head=dict(
         type='HeatmapHead',
-        in_channels=512,
+        in_channels=1024,
         out_channels=17,
-        num_deconv_layers=3,
-        num_deconv_filters=(256, 256, 256),
-        num_deconv_kernels=(4, 4, 4),
+        num_deconv_layers=2,
+        num_deconv_filters=(256, 256),
+        num_deconv_kernels=(4, 4),
         loss=dict(type='KeypointMSELoss', use_target_weight=True),
         decoder=codec,
     ),
@@ -119,7 +109,7 @@ test_evaluator = val_evaluator
 
 vis_backends = [
     dict(type='LocalVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', name='person_shufflenetv2_golfer_128x96'))
 ]
 visualizer = dict(
-    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='person_shufflenetv2_golfer_128x96')
