@@ -401,11 +401,12 @@ def render_animation_overlap(keypoints, keypoints_metadata, poses, skeleton, fps
     fig.tight_layout()
     
     anim = FuncAnimation(fig, update_video, frames=np.arange(0, limit), interval=1000/fps, repeat=False)
+    import os
+    dirname, basename = os.path.split(output)
     if with_club:
-        output = f"club_{output}"
+        output = os.path.join(dirname, f"club_{basename}")
     else:
-        output = f"no_club_{output}"
-
+        output = os.path.join(dirname, f"no_club_{basename}")
     if output.endswith('.mp4'):
         Writer = writers['ffmpeg']
         writer = Writer(fps=fps, metadata={}, bitrate=bitrate)
