@@ -135,6 +135,8 @@ def cmd_pose(args):
     camera = args.camera
 
     input_keypoints = keypoints[subject][action][camera].copy()
+    cam = dataset.cameras()[subject][camera]
+    input_keypoints[..., :2] = normalize_screen_coordinates(input_keypoints[..., :2], w=cam["res_w"], h=cam["res_h"])
     ground_truth = None
     if subject in dataset.subjects() and action in dataset[subject]:
         if "positions_3d" in dataset[subject][action]:
