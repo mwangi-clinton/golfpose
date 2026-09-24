@@ -1,7 +1,7 @@
 # RTMPose-S (CSPNeXt-S backbone, ~9M params) — Top-down on GolfSwing person
 # Balanced speed/accuracy lightweight model.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-s_simcc-coco_pt-aic-coco_420e-256x192-8edcf0d7_20230127.pth'
 

@@ -1,7 +1,7 @@
 # EfficientNet-B0 backbone — 128x96 ultra-low-resolution top-down
 # Compound-scaled backbone at minimum practical resolution.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = None
 

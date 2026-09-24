@@ -1,7 +1,7 @@
 # MobileNetV2 backbone — 128x96 ultra-low-resolution top-down
 # ~4x faster inference and ~4x less memory than 256x192 variant.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/mobilenetv2/mobilenetv2_coco_256x192-d1e58e7b_20200727.pth'
 

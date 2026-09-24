@@ -1,7 +1,7 @@
 # ShuffleNetV2 backbone — 128x96 ultra-low-resolution top-down
 # Smallest practical config for the most efficient backbone.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/shufflenetv2/shufflenetv2_coco_256x192-0aba71c7_20200921.pth'
 

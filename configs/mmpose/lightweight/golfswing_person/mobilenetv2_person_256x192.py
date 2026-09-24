@@ -1,7 +1,7 @@
 # MobileNetV2 backbone — Top-down on GolfSwing person
 # Classic lightweight model (~3.5M params backbone).
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/mobilenetv2/mobilenetv2_coco_256x192-d1e58e7b_20200727.pth'
 

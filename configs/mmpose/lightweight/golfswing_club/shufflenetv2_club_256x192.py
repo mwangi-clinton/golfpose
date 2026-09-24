@@ -1,7 +1,7 @@
 # ShuffleNetV2 backbone — Top-down on GolfSwing person
 # Extremely efficient (~2.3M params backbone).
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = 'https://download.openmmlab.com/mmpose/top_down/shufflenetv2/shufflenetv2_coco_256x192-0aba71c7_20200921.pth'
 

@@ -1,7 +1,7 @@
 # RTMPose-Tiny (CSPNeXt-Tiny backbone) — 128x96 ultra-low-resolution
 # Smallest practical config: fastest inference, lowest memory.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-tiny_simcc-coco_pt-aic-coco_420e-256x192-e613ba3f_20230127.pth'
 

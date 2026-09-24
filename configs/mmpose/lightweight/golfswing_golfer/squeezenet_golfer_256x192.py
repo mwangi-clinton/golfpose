@@ -1,7 +1,7 @@
 # SqueezeNet 1.1 backbone — Top-down on GolfSwing person
 # Ultra-compact backbone (~1.2M params), suitable for edge deployment.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 # SqueezeNet doesn't have an official MMPose checkpoint — uses ImageNet-pretrained
 checkpoint_url = None

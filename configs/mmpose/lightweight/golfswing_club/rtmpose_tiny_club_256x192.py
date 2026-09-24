@@ -1,7 +1,7 @@
 # RTMPose-Tiny (CSPNeXt-Tiny backbone, ~4M params) — Top-down on GolfSwing person
 # Fastest lightweight model; best for real-time inference.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 # Checkpoint: COCO-pretrained RTMPose-Tiny
 checkpoint_url = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-tiny_simcc-coco_pt-aic-coco_420e-256x192-e613ba3f_20230127.pth'

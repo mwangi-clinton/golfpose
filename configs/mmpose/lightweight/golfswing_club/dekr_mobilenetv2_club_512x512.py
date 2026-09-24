@@ -2,7 +2,7 @@
 # Bottom-up multi-person approach using disentangled keypoint regression
 # with a lightweight MobileNetV2 backbone.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 # DEKR doesn't have a MobileNetV2 official checkpoint — train from scratch
 # with MobileNetV2 ImageNet-pretrained backbone.

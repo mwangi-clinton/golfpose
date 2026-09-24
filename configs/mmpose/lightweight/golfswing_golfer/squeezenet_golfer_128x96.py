@@ -1,7 +1,7 @@
 # SqueezeNet 1.1 backbone — 128x96 ultra-low-resolution top-down
 # Absolute minimum footprint: ~1.2M param backbone + 128x96 input.
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 checkpoint_url = None
 

@@ -1,7 +1,7 @@
 # EfficientNet-B0 backbone — Top-down on GolfSwing person
 # Compound-scaled lightweight backbone (~5.3M params).
 
-_base_ = ['../_base_/default_runtime.py']
+_base_ = ['../../_base_/default_runtime.py']
 
 # No official MMPose checkpoint for EfficientNet — uses ImageNet-pretrained backbone
 checkpoint_url = None
