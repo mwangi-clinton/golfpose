@@ -6,7 +6,7 @@ _base_ = ['../_base_/default_runtime.py']
 
 # DEKR doesn't have a MobileNetV2 official checkpoint — train from scratch
 # with MobileNetV2 ImageNet-pretrained backbone.
-load_from = None
+checkpoint_url = None
 
 train_cfg = dict(max_epochs=200, val_interval=10)
 
@@ -16,7 +16,7 @@ optim_wrapper = dict(optimizer=dict(
 
 param_scheduler = [
     dict(type='LinearLR', begin=0, end=100, start_factor=0.001, by_epoch=False),
-    dict(type='MultiStepLR', begin=0, end=80, milestones=[40, 60, 70],
+    dict(type='MultiStepLR', begin=0, end=200, milestones=[40, 60, 70],
          gamma=0.1, by_epoch=True),
 ]
 
@@ -130,3 +130,11 @@ test_dataloader = val_dataloader
 val_evaluator = dict(type='CocoMetric',
                      ann_file=data_root + 'coco/hscc_golf_person_2d_test.json')
 test_evaluator = val_evaluator
+
+
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+]
+visualizer = dict(
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')

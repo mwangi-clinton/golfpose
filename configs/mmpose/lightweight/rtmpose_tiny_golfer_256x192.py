@@ -4,7 +4,7 @@
 _base_ = ['../_base_/default_runtime.py']
 
 # Checkpoint: COCO-pretrained RTMPose-Tiny
-load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-tiny_simcc-coco_pt-aic-coco_420e-256x192-e613ba3f_20230127.pth'
+checkpoint_url = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-tiny_simcc-coco_pt-aic-coco_420e-256x192-e613ba3f_20230127.pth'
 
 # runtime
 train_cfg = dict(max_epochs=200, val_interval=10)
@@ -19,7 +19,7 @@ optim_wrapper = dict(optimizer=dict(
 # learning policy
 param_scheduler = [
     dict(type='LinearLR', begin=0, end=100, start_factor=0.001, by_epoch=False),
-    dict(type='CosineAnnealingLR', begin=0, end=60, eta_min=1e-6, by_epoch=True),
+    dict(type='CosineAnnealingLR', begin=0, end=200, eta_min=1e-6, by_epoch=True),
 ]
 
 auto_scale_lr = dict(base_batch_size=512)
@@ -58,7 +58,7 @@ model = dict(
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
         init_cfg=dict(type='Pretrained', prefix='backbone.',
-                      checkpoint=load_from),
+                      checkpoint=checkpoint_url),
     ),
     head=dict(
         type='RTMCCHead',
@@ -132,3 +132,11 @@ val_evaluator = dict(
     type='CocoMetric',
     ann_file=data_root + 'coco/hscc_golf_person_2d_test.json')
 test_evaluator = val_evaluator
+
+
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose'))
+]
+visualizer = dict(
+    type='PoseLocalVisualizer', vis_backends=vis_backends, name='visualizer')
