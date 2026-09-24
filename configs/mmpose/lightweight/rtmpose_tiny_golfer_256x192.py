@@ -7,7 +7,7 @@ _base_ = ['../_base_/default_runtime.py']
 load_from = 'https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/rtmpose-tiny_simcc-coco_pt-aic-coco_420e-256x192-e613ba3f_20230127.pth'
 
 # runtime
-train_cfg = dict(max_epochs=60, val_interval=1)
+train_cfg = dict(max_epochs=200, val_interval=10)
 
 # optimizer
 optim_wrapper = dict(optimizer=dict(
@@ -18,7 +18,7 @@ optim_wrapper = dict(optimizer=dict(
 
 # learning policy
 param_scheduler = [
-    dict(type='LinearLR', begin=0, end=500, start_factor=0.001, by_epoch=False),
+    dict(type='LinearLR', begin=0, end=100, start_factor=0.001, by_epoch=False),
     dict(type='CosineAnnealingLR', begin=0, end=60, eta_min=1e-6, by_epoch=True),
 ]
 
@@ -27,7 +27,7 @@ auto_scale_lr = dict(base_batch_size=512)
 default_hooks = dict(
     checkpoint=dict(save_best='coco/AP', rule='greater', max_keep_ckpts=3),
     early_stopping=dict(
-        type='EarlyStoppingHook', monitor='coco/AP', patience=15,
+        type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
 )
@@ -104,8 +104,8 @@ val_pipeline = [
 ]
 
 train_dataloader = dict(
-    batch_size=64,
-    num_workers=4,
+    batch_size=256,
+    num_workers=32,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
@@ -115,8 +115,8 @@ train_dataloader = dict(
         metainfo=metainfo, pipeline=train_pipeline,
     ))
 val_dataloader = dict(
-    batch_size=32,
-    num_workers=4,
+    batch_size=256,
+    num_workers=32,
     persistent_workers=True,
     drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),

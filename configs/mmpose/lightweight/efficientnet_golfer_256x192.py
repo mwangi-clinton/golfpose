@@ -6,14 +6,14 @@ _base_ = ['../_base_/default_runtime.py']
 # No official MMPose checkpoint for EfficientNet — uses ImageNet-pretrained backbone
 load_from = None
 
-train_cfg = dict(max_epochs=60, val_interval=1)
+train_cfg = dict(max_epochs=200, val_interval=10)
 
 optim_wrapper = dict(optimizer=dict(
     type='Adam', lr=5e-4,
 ))
 
 param_scheduler = [
-    dict(type='LinearLR', begin=0, end=500, start_factor=0.001, by_epoch=False),
+    dict(type='LinearLR', begin=0, end=100, start_factor=0.001, by_epoch=False),
     dict(type='MultiStepLR', begin=0, end=60, milestones=[30, 50], gamma=0.1,
          by_epoch=True),
 ]
@@ -23,7 +23,7 @@ auto_scale_lr = dict(base_batch_size=512)
 default_hooks = dict(
     checkpoint=dict(save_best='coco/AP', rule='greater', max_keep_ckpts=3),
     early_stopping=dict(
-        type='EarlyStoppingHook', monitor='coco/AP', patience=15,
+        type='EarlyStoppingHook', monitor='coco/AP', patience=10,
         rule='greater', min_delta=0.001,
     ),
 )
@@ -84,7 +84,7 @@ val_pipeline = [
 ]
 
 train_dataloader = dict(
-    batch_size=64, num_workers=4, persistent_workers=True,
+    batch_size=256, num_workers=32, persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
@@ -93,7 +93,7 @@ train_dataloader = dict(
         pipeline=train_pipeline,
     ))
 val_dataloader = dict(
-    batch_size=32, num_workers=4, persistent_workers=True, drop_last=False,
+    batch_size=256, num_workers=32, persistent_workers=True, drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
     dataset=dict(
         type=dataset_type, data_root=data_root, data_mode=data_mode,
