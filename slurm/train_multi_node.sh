@@ -61,7 +61,7 @@ echo "WandB mode  : $WANDB_MODE (project=golfpose)"
 
 echo "Starting: $SLURM_NNODES nodes x 4 GPUs = $((SLURM_NNODES * 4)) GPUs | Model: $MODEL | work_dir=$WORK_DIR"
 
-srun --unbuffered \
+srun --ntasks-per-node=1 --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
      --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \

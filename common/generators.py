@@ -33,7 +33,7 @@ class ChunkedGenerator_Seq:
                  chunk_length, pad=0, causal_shift=0,
                  shuffle=True, random_seed=1234,
                  augment=False, kps_left=None, kps_right=None, joints_left=None, joints_right=None,
-                 endless=False):
+                 endless=False, rank=0, world_size=1):
         assert poses_3d is None or len(poses_3d) == len(poses_2d), (len(poses_3d), len(poses_2d))
         assert cameras is None or len(cameras) == len(poses_2d)
     
@@ -45,17 +45,12 @@ class ChunkedGenerator_Seq:
             offset = (n_chunks * chunk_length - poses_2d[i].shape[0]) // 2
             bounds = np.arange(n_chunks+1)*chunk_length - offset
             augment_vector = np.full(len(bounds - 1), False, dtype=bool)
-            pairs += zip(np.repeat(i, len(bounds - 1)), bounds[:-1], bounds[1:], augment_vector)
+            pairs += list(zip(np.repeat(i, len(bounds - 1)), bounds[:-1], bounds[1:], augment_vector))
             if augment:
-                pairs += zip(np.repeat(i, len(bounds - 1)), bounds[:-1], bounds[1:], ~augment_vector)
+                pairs += list(zip(np.repeat(i, len(bounds - 1)), bounds[:-1], bounds[1:], ~augment_vector))
 
-            if i == 0:
-                print(f"len(poses_2d[0] = {len(poses_2d[0])}")
-                print(f"n_chunks = {n_chunks}")
-                print(f"offset = {offset}")
-                print(f"bound = {bounds}")
-                print(f"augment_vector = {augment_vector}")
-                print(f"pairs = {pairs}")
+        if world_size > 1:
+            pairs = pairs[rank::world_size]
 
         # Initialize buffers
         if cameras is not None:
@@ -197,7 +192,8 @@ class UnchunkedGenerator_Seq:
     """
     
     def __init__(self, cameras, poses_3d, poses_2d, pad=0, causal_shift=0,
-                 augment=False, kps_left=None, kps_right=None, joints_left=None, joints_right=None):
+                 augment=False, kps_left=None, kps_right=None, joints_left=None, joints_right=None,
+                 rank=0, world_size=1):
         assert poses_3d is None or len(poses_3d) == len(poses_2d)
         assert cameras is None or len(cameras) == len(poses_2d)
 
@@ -212,6 +208,14 @@ class UnchunkedGenerator_Seq:
         self.cameras = [] if cameras is None else cameras
         self.poses_3d = [] if poses_3d is None else poses_3d
         self.poses_2d = poses_2d
+
+        if world_size > 1:
+            if self.cameras:
+                self.cameras = self.cameras[rank::world_size]
+            if self.poses_3d:
+                self.poses_3d = self.poses_3d[rank::world_size]
+            if self.poses_2d:
+                self.poses_2d = self.poses_2d[rank::world_size]
         
     def num_frames(self):
         count = 0

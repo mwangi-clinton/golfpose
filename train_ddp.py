@@ -538,12 +538,14 @@ def main():
     cameras_train, poses_train, poses_train_2d = fetch(
         dataset, keypoints, subjects_train, args, action_filter, subset=args.subset
     )
+    local_batch = max(1, args.batch_size // world_size)
     train_generator = ChunkedGenerator_Seq(
-        args.batch_size // args.stride, cameras_train, poses_train, poses_train_2d,
+        local_batch, cameras_train, poses_train, poses_train_2d,
         args.number_of_frames, pad=pad, causal_shift=causal_shift,
         shuffle=True, augment=args.data_augmentation,
         kps_left=kps_left, kps_right=kps_right,
         joints_left=joints_left, joints_right=joints_right,
+        rank=rank, world_size=world_size
     )
 
     val_generator = UnchunkedGenerator_Seq(
@@ -551,6 +553,7 @@ def main():
         pad=pad, causal_shift=causal_shift, augment=False,
         kps_left=kps_left, kps_right=kps_right,
         joints_left=joints_left, joints_right=joints_right,
+        rank=rank, world_size=world_size
     )
 
     test_generator = UnchunkedGenerator_Seq(
@@ -558,6 +561,7 @@ def main():
         pad=pad, causal_shift=causal_shift, augment=False,
         kps_left=kps_left, kps_right=kps_right,
         joints_left=joints_left, joints_right=joints_right,
+        rank=rank, world_size=world_size
     )
 
     logger.info("Training frames: %d", train_generator.num_frames() if hasattr(train_generator, 'num_frames') else -1)
