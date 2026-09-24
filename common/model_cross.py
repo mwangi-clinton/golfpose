@@ -843,6 +843,44 @@ class  MixSTE_seperate(nn.Module):
 
         return x
     
+class LinformerBlock(nn.Module):
+    def __init__(self, dim, heads, shared_projection, dim_linear_block, proj_shape, trainable_proj=False):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(dim)
+        self.norm2 = nn.LayerNorm(dim)
+        
+        seq_len, proj_k = proj_shape
+        param_sharing = 'layerwise' if shared_projection else 'none'
+        
+        self.attn = LinearMultiheadAttention(
+            dim=dim, num_heads=heads, 
+            seq_len=seq_len, proj_k=proj_k, 
+            param_sharing=param_sharing
+        )
+        
+        self.mlp = nn.Sequential(
+            nn.Linear(dim, dim_linear_block),
+            nn.GELU(),
+            nn.Dropout(0.0),
+            nn.Linear(dim_linear_block, dim),
+            nn.Dropout(0.0)
+        )
+        
+    def forward(self, x, E=None):
+        if E is not None:
+            self.attn.e_proj_weight = E
+            self.attn.f_proj_weight = E
+            
+        res = x
+        x = self.norm1(x)
+        attn_out = self.attn(x)
+        if isinstance(attn_out, tuple):
+            attn_out = attn_out[0]
+        x = res + attn_out
+        
+        x = x + self.mlp(self.norm2(x))
+        return x
+    
 class Cross_Linformer(nn.Module):
     def __init__(self, num_frame=9, num_joints=17, in_chans=2, embed_dim_ratio=32, depth=4,
                  num_heads=8, mlp_ratio=2., qkv_bias=True, qk_scale=None,
