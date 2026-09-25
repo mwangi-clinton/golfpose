@@ -36,7 +36,7 @@ env_cfg = dict(
 vis_backends = [
     dict(type='LocalVisBackend'),
     dict(type='TensorboardVisBackend'),
-    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', group='golfpose_det')),
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', group='golfpose_det', name='rtmdet_s_golfer')),
 ]
 visualizer = dict(type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
