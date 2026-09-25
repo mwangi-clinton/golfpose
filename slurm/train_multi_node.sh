@@ -3,9 +3,9 @@
 #SBATCH --account=g164
 #SBATCH --time=24:00:00
 #SBATCH --nodes=4
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=64
 #SBATCH --partition=normal
 #SBATCH --constraint=gpu
 
