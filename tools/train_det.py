@@ -16,6 +16,25 @@ import os
 import runpy
 import sys
 
+def _patch_mmengine_registry():
+    try:
+        from mmengine.registry import Registry
+        _orig = Registry._register_module
+
+        def _tolerant(self, module, module_name=None, force=False):
+            try:
+                _orig(self, module=module, module_name=module_name, force=force)
+            except KeyError as e:
+                if "already registered" not in str(e):
+                    raise
+
+        Registry._register_module = _tolerant
+        print("[train_det.py] mmengine Registry patched to tolerate duplicate optimizer registrations")
+    except Exception as e:
+        print(f"[train_det.py] registry patch failed: {e}")
+
+_patch_mmengine_registry()
+
 import mmdet
 
 # Locate mmdet's real train.py (installed alongside the package)
