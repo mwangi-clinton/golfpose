@@ -39,7 +39,7 @@ log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
 log_level = 'INFO'
 
 # Download: mim download mmdet --config rtmdet_s_8xb32-300e_coco --dest models/
-load_from = 'models/rtmdet_s_8xb32-300e_coco_20220905_161602-387f244f.pth'
+load_from = 'models/rtmdet_s_8xb32-300e_coco_20220905_161602-387a891e.pth'
 resume = False
 
 max_epochs = 100

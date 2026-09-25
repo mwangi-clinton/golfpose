@@ -45,8 +45,10 @@ visualizer = dict(type='DetLocalVisualizer', vis_backends=vis_backends, name='vi
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
 log_level = 'INFO'
 
-# Download: mim download mmdet --config rtmdet_nano_8xb32-300e_coco --dest models/
-load_from = 'models/rtmdet_nano_8xb32-300e_coco_20220902_111946-2986f400.pth'
+# RTMDet-nano has no official COCO pretrained checkpoint via mim.
+# We initialise the CSPNeXt backbone from its ImageNet weights instead;
+# the neck + head train from scratch (converges fine on 14k golf images).
+load_from = None
 resume = False
 
 max_epochs = 100
@@ -99,7 +101,10 @@ model = dict(
         channel_attention=True,
         norm_cfg=dict(type='BN'),
         act_cfg=dict(type='SiLU', inplace=True),
-        init_cfg=dict(type='Pretrained', prefix='backbone.', checkpoint=load_from),
+        init_cfg=dict(
+            type='Pretrained',
+            checkpoint='https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_imagenet_pretrain/cspnext-nano_imagenet_600e-3c65dcd3.pth',
+        ),
     ),
     neck=dict(
         type='CSPNeXtPAFPN',
