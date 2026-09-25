@@ -3,10 +3,11 @@
 """GolfPose ground truth 3D animation visualisation tool.
 
 Usage:
-    python tools/visualize_gt.py \\
-        -d golf -k gt --club 5 \\
-        --subject G5 --action Swing01 --camera 0 \\
-        --output-dir vis/
+    python tools/visualize_gt.py \
+        -d golf -k gt --club 5 \
+        --subject G5 --action Swing01 --camera 0 \
+        --output-dir vis/ \
+        --format gif
 """
 
 import argparse
@@ -15,6 +16,10 @@ import os
 import sys
 
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, writers
 
 # Ensure project root is on path
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,16 +30,98 @@ from common.logging import setup_logger
 
 logger = logging.getLogger("golfpose.vis_gt")
 
-# Use non-interactive backend for headless rendering
-import matplotlib
-matplotlib.use("Agg")
+def render_single_3d(ground_truth, skeleton, fps, output, with_club=False, azim=70):
+    plt.ioff()
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_subplot(1, 1, 1, projection='3d')
+    ax.view_init(elev=15., azim=azim)
+    
+    radius = 2
+    ax.set_xlim3d([-radius/2, radius/2])
+    ax.set_zlim3d([0, radius])
+    ax.set_ylim3d([-radius/2, radius/2])
+    try:
+        ax.set_aspect('equal')
+    except NotImplementedError:
+        ax.set_aspect('auto')
+        
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.set_zticklabels([])
+    ax.dist = 7.5
+    
+    lines_3d = []
+    parents = skeleton.parents()
+    
+    # swap y and z so the character is upright in matplotlib
+    data = np.copy(ground_truth)
+    temp = np.copy(data[:, :, 1])
+    data[:, :, 1] = data[:, :, 0]
+    data[:, :, 0] = temp
+    trajectory = data[:, 0, [0, 1]]
+    
+    limit = len(data)
+    initialized = False
+    
+    def update_video(i):
+        nonlocal initialized, lines_3d
+        
+        ax.set_xlim3d([-radius/2 + trajectory[i, 0], radius/2 + trajectory[i, 0]])
+        ax.set_ylim3d([-radius/2 + trajectory[i, 1], radius/2 + trajectory[i, 1]])
+        ax.set_title(f"Ground Truth: {i}/{limit}")
+        
+        if not initialized:
+            for j, j_parent in enumerate(parents):
+                if j_parent == -1:
+                    continue
+                
+                col = 'orange' if j in skeleton.joints_right() else 'green'
+                
+                # special handling if we have club
+                if with_club and j >= 17:
+                    col = 'blue'
+                elif not with_club and j >= 17:
+                    lines_3d.append(None)
+                    continue
+                
+                pos = data[i]
+                line = ax.plot([pos[j, 0], pos[j_parent, 0]],
+                               [pos[j, 1], pos[j_parent, 1]],
+                               [pos[j, 2], pos[j_parent, 2]], zdir='z', c=col)
+                lines_3d.append(line)
+            initialized = True
+        else:
+            line_idx = 0
+            for j, j_parent in enumerate(parents):
+                if j_parent == -1:
+                    continue
+                if not with_club and j >= 17:
+                    continue
+                
+                pos = data[i]
+                lines_3d[line_idx][0].set_xdata(np.array([pos[j, 0], pos[j_parent, 0]]))
+                lines_3d[line_idx][0].set_ydata(np.array([pos[j, 1], pos[j_parent, 1]]))
+                lines_3d[line_idx][0].set_3d_properties(np.array([pos[j, 2], pos[j_parent, 2]]), zdir='z')
+                line_idx += 1
+                
+        print(f'{i}/{limit}      ', end='\r')
+
+    fig.tight_layout()
+
+    anim = FuncAnimation(fig, update_video, frames=np.arange(0, limit), interval=1000/fps, repeat=False)
+    if output.endswith('.mp4'):
+        Writer = writers['ffmpeg']
+        writer = Writer(fps=fps, metadata={}, bitrate=3000)
+        anim.save(output, writer=writer)
+    elif output.endswith('.gif'):
+        anim.save(output, dpi=80, writer='imagemagick')
+    else:
+        raise ValueError('Unsupported output format')
+    plt.close()
 
 def cmd_pose_gt(args):
     """Render a 3D pose animation from ground truth data only."""
-    from common.camera import (
-        normalize_screen_coordinates, image_coordinates,
-        camera_to_world_golf, world_to_vicon_golf,
-    )
+    from common.camera import camera_to_world_golf, world_to_vicon_golf
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -51,11 +138,6 @@ def cmd_pose_gt(args):
     action = args.action
     camera = args.camera
 
-    try:
-        input_keypoints = keypoints[subject][action][camera].copy()
-    except (KeyError, IndexError):
-        logger.error(f"Data not found for subject {subject}, action {action}, camera {camera}")
-        return
     cam = dataset.cameras()[subject][camera]
     
     ground_truth = None
@@ -76,22 +158,13 @@ def cmd_pose_gt(args):
     ground_truth = world_to_vicon_golf(ground_truth, cam["world_to_vicon_basis_dots"])
     ground_truth /= 1000
 
-    # Render using existing visualization module
-    from common.visualization import render_animation_overlap
-    input_kps = image_coordinates(
-        normalize_screen_coordinates(input_keypoints[..., :2], w=cam["res_w"], h=cam["res_h"]), 
-        w=cam["res_w"], h=cam["res_h"]
-    )
-
-    anim_output = {"Ground truth": ground_truth}
-
     output_file = os.path.join(args.output_dir, f"{subject}_{action}_cam{camera}_gt_only.{args.format}")
-    render_animation_overlap(
-        input_kps, keypoints_metadata, anim_output,
-        dataset.skeleton(), dataset.fps(), 3000, cam.get("azimuth", 70),
-        output_file, viewport=(cam["res_w"], cam["res_h"]),
-        with_club=club_num != 0,
+    
+    render_single_3d(
+        ground_truth, dataset.skeleton(), dataset.fps(), 
+        output_file, with_club=club_num != 0, azim=cam.get("azimuth", 70)
     )
+    
     logger.info("Saved ground truth pose animation: %s", output_file)
 
 def build_parser():
