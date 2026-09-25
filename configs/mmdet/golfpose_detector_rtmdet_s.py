@@ -33,7 +33,11 @@ env_cfg = dict(
     mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
 )
 
-vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(type='TensorboardVisBackend'),
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', group='golfpose_det')),
+]
 visualizer = dict(type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
 log_level = 'INFO'

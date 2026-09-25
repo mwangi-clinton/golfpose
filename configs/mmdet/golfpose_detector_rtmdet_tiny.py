@@ -44,7 +44,11 @@ env_cfg = dict(
 )
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
-vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(type='TensorboardVisBackend'),
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', group='golfpose_det')),
+]
 visualizer = dict(
     type='DetLocalVisualizer',
     vis_backends=vis_backends,

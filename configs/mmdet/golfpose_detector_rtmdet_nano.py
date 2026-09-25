@@ -40,7 +40,11 @@ env_cfg = dict(
     mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
 )
 
-vis_backends = [dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')]
+vis_backends = [
+    dict(type='LocalVisBackend'),
+    dict(type='TensorboardVisBackend'),
+    dict(type='WandbVisBackend', init_kwargs=dict(project='golfpose', group='golfpose_det')),
+]
 visualizer = dict(type='DetLocalVisualizer', vis_backends=vis_backends, name='visualizer')
 log_processor = dict(type='LogProcessor', window_size=50, by_epoch=True)
 log_level = 'INFO'
@@ -101,10 +105,6 @@ model = dict(
         channel_attention=True,
         norm_cfg=dict(type='BN'),
         act_cfg=dict(type='SiLU', inplace=True),
-        init_cfg=dict(
-            type='Pretrained',
-            checkpoint='https://download.openmmlab.com/mmdetection/v3.0/rtmdet/cspnext_imagenet_pretrain/cspnext-nano_imagenet_600e-3c65dcd3.pth',
-        ),
     ),
     neck=dict(
         type='CSPNeXtPAFPN',
