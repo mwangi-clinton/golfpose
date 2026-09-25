@@ -51,11 +51,11 @@ def cmd_pose_gt(args):
     action = args.action
     camera = args.camera
 
-    if subject not in keypoints or action not in keypoints[subject] or camera not in keypoints[subject][action]:
+    try:
+        input_keypoints = keypoints[subject][action][camera].copy()
+    except (KeyError, IndexError):
         logger.error(f"Data not found for subject {subject}, action {action}, camera {camera}")
         return
-
-    input_keypoints = keypoints[subject][action][camera].copy()
     cam = dataset.cameras()[subject][camera]
     
     ground_truth = None
