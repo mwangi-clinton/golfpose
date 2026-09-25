@@ -156,13 +156,9 @@ train_pipeline_stage1 = [
     dict(type='LoadImageFromFile', backend_args=backend_args),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
-        type='Mosaic',
+        type='CachedMosaic',
         img_scale=INPUT_SIZE,
         pad_val=114.0,
-        pre_transform=[
-            dict(type='LoadImageFromFile', backend_args=backend_args),
-            dict(type='LoadAnnotations', with_bbox=True),
-        ],
     ),
     dict(
         type='RandomResize',
