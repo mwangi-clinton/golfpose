@@ -35,6 +35,54 @@ def _patch_mmengine_registry():
 
 _patch_mmengine_registry()
 
+def _patch_mmcv_nms():
+    try:
+        import torch
+        import torchvision
+        import mmcv.ops.nms
+        
+        def _tv_nms(boxes, scores, iou_threshold, offset=0, score_threshold=0, max_num=-1):
+            is_numpy = False
+            if isinstance(boxes, torch.Tensor) and not boxes.is_cuda:
+                pass
+            if not isinstance(boxes, torch.Tensor):
+                is_numpy = True
+                boxes = torch.from_numpy(boxes)
+                scores = torch.from_numpy(scores)
+
+            if boxes.numel() == 0:
+                empty_dets = torch.empty((0, 5), device=boxes.device)
+                empty_inds = torch.empty((0,), dtype=torch.long, device=boxes.device)
+                return (empty_dets.numpy(), empty_inds.numpy()) if is_numpy else (empty_dets, empty_inds)
+
+            # Optional mmcv score filtering
+            if score_threshold > 0:
+                valid_mask = scores > score_threshold
+                inds = valid_mask.nonzero(as_tuple=False).squeeze(1)
+                valid_boxes, valid_scores = boxes[inds], scores[inds]
+            else:
+                inds = torch.arange(boxes.size(0), device=boxes.device)
+                valid_boxes, valid_scores = boxes, scores
+
+            keep = torchvision.ops.nms(valid_boxes, valid_scores, iou_threshold)
+            if max_num > 0 and keep.size(0) > max_num:
+                keep = keep[:max_num]
+            
+            keep = inds[keep]
+            dets = torch.cat((boxes[keep], scores[keep].reshape(-1, 1)), dim=1)
+            
+            if is_numpy:
+                return dets.cpu().numpy(), keep.cpu().numpy()
+            return dets, keep
+
+        mmcv.ops.nms.nms = _tv_nms
+        mmcv.ops.nms = _tv_nms
+        print("[train_det.py] mmcv NMS patched to use torchvision (bypassing missing CUDA extensions)")
+    except Exception as e:
+        print(f"[train_det.py] NMS patch failed: {e}")
+
+_patch_mmcv_nms()
+
 import mmdet
 
 # Locate mmdet's real train.py (installed alongside the package)
