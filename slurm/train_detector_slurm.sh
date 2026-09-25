@@ -123,7 +123,7 @@ srun --unbuffered \
      --container-image="$CONTAINER_IMAGE" \
      --container-mounts="$CONTAINER_MOUNTS" \
      --container-workdir="$PROJECT_DIR" \
-     python -m mmdet.train \
+     python "$PROJECT_DIR/tools/train_det.py" \
          "$CONFIG_PATH" \
          --launcher slurm \
          --work-dir "$WORK_DIR" \
