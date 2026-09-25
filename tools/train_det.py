@@ -41,7 +41,7 @@ def _patch_mmcv_nms():
         import torchvision
         import mmcv.ops.nms
         
-        def _tv_nms(boxes, scores, iou_threshold, offset=0, score_threshold=0, max_num=-1):
+        def _tv_batched_nms(boxes, scores, idxs, nms_cfg, class_agnostic=False):
             is_numpy = False
             if isinstance(boxes, torch.Tensor) and not boxes.is_cuda:
                 pass
@@ -49,37 +49,49 @@ def _patch_mmcv_nms():
                 is_numpy = True
                 boxes = torch.from_numpy(boxes)
                 scores = torch.from_numpy(scores)
+                idxs = torch.from_numpy(idxs)
 
             if boxes.numel() == 0:
                 empty_dets = torch.empty((0, 5), device=boxes.device)
                 empty_inds = torch.empty((0,), dtype=torch.long, device=boxes.device)
                 return (empty_dets.numpy(), empty_inds.numpy()) if is_numpy else (empty_dets, empty_inds)
 
-            # Optional mmcv score filtering
+            iou_threshold = nms_cfg.get('iou_threshold', 0.5)
+            score_threshold = nms_cfg.get('score_threshold', 0)
+            max_num = nms_cfg.get('max_num', -1)
+
+            if class_agnostic:
+                idxs = torch.zeros_like(idxs)
+
             if score_threshold > 0:
                 valid_mask = scores > score_threshold
-                inds = valid_mask.nonzero(as_tuple=False).squeeze(1)
-                valid_boxes, valid_scores = boxes[inds], scores[inds]
+                valid_inds = valid_mask.nonzero(as_tuple=False).squeeze(1)
+                valid_boxes = boxes[valid_inds]
+                valid_scores = scores[valid_inds]
+                valid_idxs = idxs[valid_inds]
             else:
-                inds = torch.arange(boxes.size(0), device=boxes.device)
-                valid_boxes, valid_scores = boxes, scores
+                valid_inds = torch.arange(boxes.size(0), device=boxes.device)
+                valid_boxes, valid_scores, valid_idxs = boxes, scores, idxs
 
-            keep = torchvision.ops.nms(valid_boxes, valid_scores, iou_threshold)
+            keep = torchvision.ops.batched_nms(valid_boxes, valid_scores, valid_idxs, iou_threshold)
+            
             if max_num > 0 and keep.size(0) > max_num:
                 keep = keep[:max_num]
             
-            keep = inds[keep]
+            keep = valid_inds[keep]
             dets = torch.cat((boxes[keep], scores[keep].reshape(-1, 1)), dim=1)
             
             if is_numpy:
                 return dets.cpu().numpy(), keep.cpu().numpy()
             return dets, keep
 
-        mmcv.ops.nms.nms = _tv_nms
-        mmcv.ops.nms = _tv_nms
-        print("[train_det.py] mmcv NMS patched to use torchvision (bypassing missing CUDA extensions)")
+        mmcv.ops.batched_nms = _tv_batched_nms
+        mmcv.ops.nms.batched_nms = _tv_batched_nms
+        sys.modules['mmcv.ops'].batched_nms = _tv_batched_nms
+        sys.modules['mmcv.ops.nms'].batched_nms = _tv_batched_nms
+        print("[train_det.py] mmcv batched_nms patched to use torchvision")
     except Exception as e:
-        print(f"[train_det.py] NMS patch failed: {e}")
+        print(f"[train_det.py] batched_nms patch failed: {e}")
 
 _patch_mmcv_nms()
 
