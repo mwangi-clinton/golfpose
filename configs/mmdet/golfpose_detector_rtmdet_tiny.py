@@ -33,7 +33,7 @@ default_hooks = dict(
     param_scheduler=dict(type='ParamSchedulerHook'),
     sampler_seed=dict(type='DistSamplerSeedHook'),
     timer=dict(type='IterTimerHook'),
-    visualization=dict(type='DetVisualizationHook'),
+    visualization=dict(type='DetVisualizationHook', draw=True, interval=20, score_thr=0.35),
 )
 
 # ─── Environment ──────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ resume = False
 
 # ─── Training schedule ────────────────────────────────────────────────────────
 # 100 epochs with cosine annealing — matches RTMDet paper's recipe
-max_epochs = 100
+max_epochs = 200
 num_last_epochs = 10   # last N epochs: close mosaic, use regular aug
 
 train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=5)
@@ -240,9 +240,9 @@ test_pipeline = [
 ]
 
 # ─── DataLoaders ──────────────────────────────────────────────────────────────
-train_batch_size = 32
-val_batch_size   = 8
-num_workers      = 4
+train_batch_size = 256
+val_batch_size   = 64
+num_workers      = 16
 
 train_dataloader = dict(
     batch_size=train_batch_size,
@@ -305,5 +305,11 @@ custom_hooks = [
         type='PipelineSwitchHook',
         switch_epoch=max_epochs - num_last_epochs,
         switch_pipeline=train_pipeline_stage2,
+    ),
+    dict(
+        type='EarlyStoppingHook',
+        monitor='coco/bbox_mAP',
+        patience=10,
+        min_delta=0.001,
     ),
 ]
